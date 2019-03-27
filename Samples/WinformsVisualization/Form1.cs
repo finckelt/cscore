@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CSCore;
 using CSCore.Codecs;
@@ -10,6 +12,7 @@ using CSCore.SoundIn;
 using CSCore.Streams;
 using CSCore.Streams.Effects;
 using CSCore.CoreAudioAPI;
+using MagicLedTests;
 using WinformsVisualization.Visualization;
 
 namespace WinformsVisualization
@@ -21,10 +24,23 @@ namespace WinformsVisualization
         private IWaveSource _source;
         private PitchShifter _pitchShifter;
         private LineSpectrum _lineSpectrum;
+
         private VoicePrint3DSpectrum _voicePrint3DSpectrum;
 
         private readonly Bitmap _bitmap = new Bitmap(2000, 600);
         private int _xpos;
+        private LightsController _lightsController = new LightsController();
+        private Task _lightScanTask;
+        private bool _lightInitialized = false;
+        private List<Light> _lightsOn;
+        private Lights _lightWindow;
+
+        private ColorChannelShifter r; 
+        private ColorChannelShifter g;
+        private ColorChannelShifter b;
+
+        private Color _flowColor;
+        
 
         public Form1()
         {
@@ -41,7 +57,7 @@ namespace WinformsVisualization
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 Stop();
-                
+
                 //open the selected file
                 ISampleSource source = CodecFactory.Instance.GetCodec(openFileDialog.FileName)
                     .ToSampleSource()
@@ -94,7 +110,7 @@ namespace WinformsVisualization
             propertyGridBottom.SelectedObject = _voicePrint3DSpectrum;
         }
 
-        
+
         /// <summary>
         /// 
         /// </summary>
@@ -115,8 +131,9 @@ namespace WinformsVisualization
                 BarCount = 50,
                 BarSpacing = 2,
                 IsXLogScale = true,
-                ScalingStrategy = ScalingStrategy.Sqrt
+                ScalingStrategy = ScalingStrategy.Decibel
             };
+
             _voicePrint3DSpectrum = new VoicePrint3DSpectrum(fftSize)
             {
                 SpectrumProvider = spectrumProvider,
@@ -138,6 +155,15 @@ namespace WinformsVisualization
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
+            if (_lightInitialized && _lightsOn.Count > 0)
+            {
+                _lightsOn.SetColors(_lineSpectrum.StartColor);
+            }
+
+            if (_lightWindow != null)
+                _lightWindow.Dispose();
+            _lightsController.Dispose();
+
             Stop();
         }
 
@@ -153,9 +179,9 @@ namespace WinformsVisualization
             }
             if (_soundIn != null)
             {
-              _soundIn.Stop();
-              _soundIn.Dispose();
-              _soundIn = null;
+                _soundIn.Stop();
+                _soundIn.Dispose();
+                _soundIn = null;
             }
             if (_source != null)
             {
@@ -170,7 +196,47 @@ namespace WinformsVisualization
         {
             //render the spectrum
             GenerateLineSpectrum();
-            GenerateVoice3DPrintSpectrum();   
+            if (_lightScanTask.IsCompleted)
+            {
+                if (!_lightInitialized)
+                {
+                    _lightsOn = _lightsController.GetLightsByPowerStatus(true);
+
+                    if (_lightsOn.Count > 0)
+                    {
+                        _lineSpectrum.StartColor = _lightsOn[0].CurrentColor;
+                        _flowColor = _lineSpectrum.StartColor;
+                        r = new ColorChannelShifter(_lineSpectrum.StartColor.R);
+                        b = new ColorChannelShifter(_lineSpectrum.StartColor.B);
+                        g = new ColorChannelShifter(_lineSpectrum.StartColor.G);
+
+                        b.GoingUp = true;
+                        _lightInitialized = true;
+                        
+                    }
+                }
+
+                if (_lightInitialized && _lightsOn.Count > 0 && _lineSpectrum.EnableLights)
+                {
+                    if (_lineSpectrum.UseFlow)
+                    {
+                        var shifters = new List<ColorChannelShifter> {r, g, b};
+                        _flowColor = UnitTest1.Flow(shifters, _lightsController, 2);
+                        _lightsOn.SetColors(_flowColor.AdjustPercentage(_lineSpectrum.MaxPercent));
+                    }
+                    else
+                    {
+                        _lightsOn.SetColors(_lineSpectrum.StartColor.AdjustPercentage(_lineSpectrum.MaxPercent));
+                    }
+
+                    
+                    if (_lineSpectrum.DelayMS > 0)
+                        System.Threading.Thread.Sleep(_lineSpectrum.DelayMS);
+                }
+
+
+            }
+            GenerateVoice3DPrintSpectrum();
         }
 
         private void GenerateLineSpectrum()
@@ -214,14 +280,14 @@ namespace WinformsVisualization
                 TickStyle = TickStyle.None,
                 Minimum = -100,
                 Maximum = 100,
-                Value = (int) (_pitchShifter != null ? Math.Log10(_pitchShifter.PitchShiftFactor) / Math.Log10(2) * 120 : 0),
+                Value = (int)(_pitchShifter != null ? Math.Log10(_pitchShifter.PitchShiftFactor) / Math.Log10(2) * 120 : 0),
                 Dock = DockStyle.Fill
             };
             trackBar.ValueChanged += (s, args) =>
             {
                 if (_pitchShifter != null)
                 {
-                    _pitchShifter.PitchShiftFactor = (float) Math.Pow(2, trackBar.Value / 120.0);
+                    _pitchShifter.PitchShiftFactor = (float)Math.Pow(2, trackBar.Value / 120.0);
                     form.Text = trackBar.Value.ToString();
                 }
             };
@@ -230,6 +296,24 @@ namespace WinformsVisualization
             form.ShowDialog();
 
             form.Dispose();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            _lightScanTask = _lightsController.ScanAsync();
+        }
+
+        private void lightsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!_lightScanTask.IsCompleted)
+            {
+                MessageBox.Show("Lights Still Loading", "Lights Still Loading...");
+            }
+            else
+            {
+                _lightWindow = _lightWindow ?? new Lights(_lightsController);
+                _lightWindow.ShowDialog(this);
+            }
         }
     }
 }

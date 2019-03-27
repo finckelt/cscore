@@ -18,6 +18,7 @@
                 components.Dispose();
             }
             base.Dispose(disposing);
+            
         }
 
         #region Vom Windows Form-Designer generierter Code
@@ -40,6 +41,7 @@
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fromDefaultDeviceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.pitchShiftToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.lightsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -150,7 +152,8 @@
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem,
             this.fromDefaultDeviceToolStripMenuItem,
-            this.pitchShiftToolStripMenuItem});
+            this.pitchShiftToolStripMenuItem,
+            this.lightsToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.Size = new System.Drawing.Size(1131, 24);
@@ -178,9 +181,15 @@
             this.pitchShiftToolStripMenuItem.Text = "Pitch-Shift";
             this.pitchShiftToolStripMenuItem.Click += new System.EventHandler(this.pitchShiftToolStripMenuItem_Click);
             // 
+            // lightsToolStripMenuItem
+            // 
+            this.lightsToolStripMenuItem.Name = "lightsToolStripMenuItem";
+            this.lightsToolStripMenuItem.Size = new System.Drawing.Size(51, 20);
+            this.lightsToolStripMenuItem.Text = "Lights";
+            this.lightsToolStripMenuItem.Click += new System.EventHandler(this.lightsToolStripMenuItem_Click);
+            // 
             // timer1
             // 
-            this.timer1.Interval = 40;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
             // 
             // Form1
@@ -193,6 +202,7 @@
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
             this.Text = "CSCore - Visualization";
+            this.Load += new System.EventHandler(this.Form1_Load);
             this.splitContainer1.Panel1.ResumeLayout(false);
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
@@ -228,6 +238,7 @@
         private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.ToolStripMenuItem pitchShiftToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fromDefaultDeviceToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem lightsToolStripMenuItem;
     }
 }
 

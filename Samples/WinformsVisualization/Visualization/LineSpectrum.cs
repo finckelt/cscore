@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Linq;
 using CSCore.DSP;
 
 namespace WinformsVisualization.Visualization
@@ -13,6 +14,19 @@ namespace WinformsVisualization.Visualization
         private double _barSpacing;
         private double _barWidth;
         private Size _currentSize;
+        public double FirstPointValue { get; set; } = 0.0;
+        public double LastPointValue { get; set; } = 0.0;
+        public double Average { get; set; } = 0.0;
+        public double Max{ get; set; } = 0.0;
+        public double MaxPercent { get; set; } = 0.0;
+        public int MaxIndex { get; set; } = 0;
+        public int DelayMS { get; set; } = 0;
+        public double Sensitivity { get; set; } = 0;
+        public bool EnableLights { get; set; }
+        public Color StartColor { get; set; } = Color.FromArgb(255, 255, 255, 255);
+        public bool UseFlow { get; set; }
+
+
 
         public LineSpectrum(FftSize fftSize)
         {
@@ -114,6 +128,22 @@ namespace WinformsVisualization.Visualization
             //prepare the fft result for rendering 
             SpectrumPointData[] spectrumPoints = CalculateSpectrumPoints(height, fftBuffer);
 
+            if (spectrumPoints != null && spectrumPoints.Length > 0)
+            {
+                FirstPointValue = spectrumPoints[0].Value;
+                LastPointValue = spectrumPoints[spectrumPoints.Length - 1].Value;
+                Average = spectrumPoints.Average(s => s.Value);
+                Max = spectrumPoints.Max(s => s.Value);
+                
+                MaxPercent = 1 - ((height - Max) / height);
+                if (Sensitivity > 0 && MaxPercent + Sensitivity <= 1)
+                    MaxPercent = MaxPercent + Sensitivity;
+
+                MaxIndex = spectrumPoints.ToList().IndexOf(spectrumPoints.First(s => s.Value == Max));
+            }
+
+            Console.WriteLine("First: {0}, Last: {1}, Average: {2}, Max: {3}, MaxPercent: {4}", FirstPointValue, LastPointValue, Average, Max, MaxPercent);
+
             //connect the calculated points with lines
             for (int i = 0; i < spectrumPoints.Length; i++)
             {
@@ -123,6 +153,8 @@ namespace WinformsVisualization.Visualization
 
                 var p1 = new PointF((float) xCoord, height);
                 var p2 = new PointF((float) xCoord, height - (float) p.Value - 1);
+
+                Console.WriteLine("Height: {0}, PValue:{1}, Calc: {2}", height, p.Value, height - (float)p.Value - 1);
 
                 graphics.DrawLine(pen, p1, p2);
             }
